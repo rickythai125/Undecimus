@@ -460,25 +460,46 @@ void extension_release(uint64_t ext) {
     kexecute(GETOFFSET(extension_release), ext, 0, 0, 0, 0, 0, 0);
 }
 
-bool set_sandbox_extension(uint64_t sandbox, const char *exc_key, const char *path) {
-    bool set_sandbox_extension = true;
+bool set_file_extension(uint64_t sandbox, const char *exc_key, const char *path) {
+    bool set_file_extension = true;
     if (sandbox != 0) {
         uint64_t ext = smalloc(SIZEOF_STRUCT_EXTENSION);
         if (ext != 0) {
-            int ret_extension_create_file = extension_create_file(ext, sandbox, path, strlen(path) + 1, ET_FILE);
+            int ret_extension_create_file = extension_create_file(ext, sandbox, path, strlen(path) + 1, 0);
             if (ret_extension_create_file == 0) {
                 int ret_extension_add = extension_add(ext, sandbox, exc_key);
                 if (ret_extension_add == 0) {
-                    set_sandbox_extension = true;
+                    set_file_extension = true;
                 }
             }
             extension_release(ext);
             sfree(ext);
         }
     } else {
-        set_sandbox_extension = true;
+        set_file_extension = true;
     }
-    return set_sandbox_extension;
+    return set_file_extension;
+}
+
+bool set_mach_extension(uint64_t sandbox, const char *exc_key, const char *name) {
+    bool set_mach_extension = true;
+    if (sandbox != 0) {
+        uint64_t ext = smalloc(SIZEOF_STRUCT_EXTENSION);
+        if (ext != 0) {
+            int ret_extension_create_mach = extension_create_mach(ext, sandbox, name, 0);
+            if (ret_extension_create_mach == 0) {
+                int ret_extension_add = extension_add(ext, sandbox, exc_key);
+                if (ret_extension_add == 0) {
+                    set_mach_extension = true;
+                }
+            }
+            extension_release(ext);
+            sfree(ext);
+        }
+    } else {
+        set_mach_extension = true;
+    }
+    return set_mach_extension;
 }
 
 uint64_t proc_find(pid_t pid) {

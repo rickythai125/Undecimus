@@ -33,15 +33,6 @@ TODO:
 #define KERN_POINTER_VALID(val) ((val) >= 0xffff000000000000 && (val) != 0xffffffffffffffff)
 #define SIZEOF_STRUCT_EXTENSION 0x60
 
-enum ext_type {
-    ET_FILE = 0,
-    ET_MACH = 1,
-    ET_IOKIT_REG_ENT = 2,
-    ET_POSIX_IPC = 4,
-    ET_PREF_DOMAIN = 5, // inlined in issue_extension_for_preference_domain
-    ET_SYSCTL = 6, // inlined in issue_extension_for_sysctl
-};
-
 extern uint64_t kernel_base;
 extern uint64_t kernel_slide;
 
@@ -95,7 +86,8 @@ int extension_create_file(uint64_t saveto, uint64_t sb, const char *path, size_t
 int extension_create_mach(uint64_t saveto, uint64_t sb, const char *name, uint32_t subtype);
 int extension_add(uint64_t ext, uint64_t sb, const char *desc);
 void extension_release(uint64_t ext);
-bool set_sandbox_extension(uint64_t proc, const char *exc_key, const char *path);
+bool set_file_extension(uint64_t sandbox, const char *exc_key, const char *path);
+bool set_mach_extension(uint64_t sandbox, const char *exc_key, const char *name);
 uint64_t proc_find(pid_t pid);
 void proc_rele(uint64_t proc);
 void proc_lock(uint64_t proc);
