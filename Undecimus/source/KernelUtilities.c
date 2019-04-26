@@ -7,6 +7,7 @@
 #include <common.h>
 #include <iokit.h>
 #include <patchfinder64.h>
+#include <sys/mount.h>
 
 #include "KernelMemory.h"
 #include "KernelStructureOffsets.h"
@@ -426,7 +427,7 @@ void sfree(uint64_t ptr) {
 }
 
 int extension_create_file(uint64_t saveto, uint64_t sb, const char *path, size_t path_len, uint32_t subtype) {
-    int extension_create_file = 0;
+    int extension_create_file = -1;
     uint64_t kstr = kstralloc(path);
     if (kstr != 0) {
         extension_create_file = (int)kexecute(GETOFFSET(extension_create_file), saveto, sb, kstr, (uint64_t)path_len, (uint64_t)subtype, 0, 0);
@@ -436,7 +437,7 @@ int extension_create_file(uint64_t saveto, uint64_t sb, const char *path, size_t
 }
 
 int extension_create_mach(uint64_t saveto, uint64_t sb, const char *name, uint32_t subtype) {
-    int extension_create_mach = 0;
+    int extension_create_mach = -1;
     uint64_t kstr = kstralloc(name);
     if (kstr != 0) {
         extension_create_mach = (int)kexecute(GETOFFSET(extension_create_mach), saveto, sb, kstr, (uint64_t)subtype, 0, 0, 0);
@@ -446,7 +447,7 @@ int extension_create_mach(uint64_t saveto, uint64_t sb, const char *name, uint32
 }
 
 int extension_add(uint64_t ext, uint64_t sb, const char *desc) {
-    int extension_add = 0;
+    int extension_add = -1;
     uint64_t kstr = kstralloc(desc);
     if (kstr != 0) {
         extension_add = (int)kexecute(GETOFFSET(extension_add), ext, sb, kstr, 0, 0, 0, 0);
@@ -537,4 +538,33 @@ void kauth_cred_ref(uint64_t cred) {
 
 void kauth_cred_unref(uint64_t cred) {
     kexecute(GETOFFSET(kauth_cred_unref), cred, 0, 0, 0, 0, 0, 0);
+}
+
+uint64_t vfs_context_current() {
+    uint64_t vfs_context_current = kexecute(GETOFFSET(vfs_context_current), 1, 0, 0, 0, 0, 0, 0);
+    vfs_context_current = zm_fix_addr(vfs_context_current);
+    return vfs_context_current;
+}
+
+int vnode_lookup(const char *path, int flags, uint64_t *vpp, uint64_t ctx) {
+    int vnode_lookup = -1;
+    uint64_t kstr = kstralloc(path);
+    if (kstr != 0) {
+        size_t vpp_kptr_size = sizeof(uint64_t);
+        uint64_t vpp_kptr = kmem_alloc(vpp_kptr_size);
+        if (vpp_kptr != 0) {
+            vnode_lookup = (int)kexecute(GETOFFSET(vnode_lookup), kstr, (uint64_t)flags, vpp_kptr, ctx, 0, 0, 0);
+            if (vnode_lookup == 0) {
+                *vpp = ReadKernel64(vpp_kptr);
+            }
+            kmem_free(vpp_kptr, vpp_kptr_size);
+        }
+        kstrfree(kstr);
+    }
+    return vnode_lookup;
+}
+
+int vnode_put(uint64_t vp) {
+    int vnode_put = (int)kexecute(GETOFFSET(vnode_put), vp, 0, 0, 0, 0, 0, 0);
+    return vnode_put;
 }

@@ -112,5 +112,8 @@ void kauth_cred_unref(uint64_t cred);
 int chgproccnt(uid_t uid, int diff);
 void kauth_cred_ref(uint64_t cred);
 void kauth_cred_unref(uint64_t cred);
+uint64_t vfs_context_current(void);
+int vnode_lookup(const char *path, int flags, uint64_t *vpp, uint64_t ctx);
+int vnode_put(uint64_t vp);
 
 #endif /* kutils_h */

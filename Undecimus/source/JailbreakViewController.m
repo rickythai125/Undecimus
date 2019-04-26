@@ -405,37 +405,11 @@ void unblockDomainWithName(const char *name) {
     }
 }
 
-uint64_t _vfs_context() {
-    static uint64_t vfs_context = 0;
-    if (vfs_context == 0) {
-        vfs_context = kexecute(GETOFFSET(vfs_context_current), 1, 0, 0, 0, 0, 0, 0);
-        vfs_context = zm_fix_addr(vfs_context);
-    }
-    return vfs_context;
-}
-
-int _vnode_lookup(const char *path, int flags, uint64_t *vpp, uint64_t vfs_context){
-    uint64_t vnode = kmem_alloc(sizeof(uint64_t));
-    uint64_t kstr = kstralloc(path);
-    int ret = (int)kexecute(GETOFFSET(vnode_lookup), kstr, 0, vnode, vfs_context, 0, 0, 0);
-    if (ret != ERR_SUCCESS) {
-        return -1;
-    }
-    *vpp = ReadKernel64(vnode);
-    kstrfree(kstr);
-    kmem_free(vnode, sizeof(uint64_t));
-    return 0;
-}
-
-int _vnode_put(uint64_t vnode){
-    return (int)kexecute(GETOFFSET(vnode_put), vnode, 0, 0, 0, 0, 0, 0);
-}
-
 uint64_t vnodeForPath(const char *path) {
-    uint64_t vfs_context = 0;
+    static uint64_t vfs_context = 0;
     uint64_t *vpp = NULL;
     uint64_t vnode = 0;
-    vfs_context = _vfs_context();
+    vfs_context = vfs_context_current();
     if (!KERN_POINTER_VALID(vfs_context)) {
         LOG("Failed to get vfs_context.");
         goto out;
@@ -445,7 +419,7 @@ uint64_t vnodeForPath(const char *path) {
         LOG("Failed to allocate memory.");
         goto out;
     }
-    if (_vnode_lookup(path, O_RDONLY, vpp, vfs_context) != ERR_SUCCESS) {
+    if (vnode_lookup(path, O_RDONLY, vpp, vfs_context) != ERR_SUCCESS) {
         LOG("Failed to get vnode at path \"%s\".", path);
         goto out;
     }
@@ -487,7 +461,7 @@ uint64_t vnodeForSnapshot(int fd, char *name) {
     if (!KERN_POINTER_VALID(ndp_buf)) {
         goto out;
     }
-    vfs_context = _vfs_context();
+    vfs_context = vfs_context_current();
     LOG("vfs_context = " ADDR, vfs_context);
     if (!KERN_POINTER_VALID(vfs_context)) {
         goto out;
@@ -543,7 +517,7 @@ uint64_t vnodeForSnapshot(int fd, char *name) {
     }
 out:
     if (KERN_POINTER_VALID(sdvpp)) {
-        _vnode_put(sdvpp);
+        vnode_put(sdvpp);
     }
     if (KERN_POINTER_VALID(sdvpp_ptr)) {
         kmem_free(sdvpp_ptr, sizeof(uint64_t));
@@ -1155,7 +1129,7 @@ void jailbreak()
             LOG("v_specinfo = " ADDR, v_specinfo);
             _assert(KERN_POINTER_VALID(v_specinfo), message, true);
             WriteKernel32(v_specinfo + koffset(KSTRUCT_OFFSET_SPECINFO_SI_FLAGS), 0);
-            _assert(_vnode_put(devVnode) == ERR_SUCCESS, message, true);
+            _assert(vnode_put(devVnode) == ERR_SUCCESS, message, true);
             LOG("Successfully cleared dev vnode's si_flags.");
             
             // Mount RootFS.
@@ -1228,7 +1202,7 @@ void jailbreak()
             _assert(fs_snapshot_rename(rootfd, systemSnapshot, original_snapshot, 0) == ERR_SUCCESS, message, true);
             if (kCFCoreFoundationVersionNumber >= 1535.12) {
                 WriteKernel32(system_snapshot_vnode_v_data + 49, system_snapshot_vnode_v_data_flag);
-                _assert(_vnode_put(system_snapshot_vnode) == ERR_SUCCESS, message, true);
+                _assert(vnode_put(system_snapshot_vnode) == ERR_SUCCESS, message, true);
             }
             LOG("Successfully renamed system snapshot.");
             
@@ -1267,7 +1241,7 @@ void jailbreak()
             _assert(runCommand("/sbin/mount", "-u", thedisk, NULL) == ERR_SUCCESS, message, true);
             WriteKernel32(v_mount + koffset(KSTRUCT_OFFSET_MOUNT_MNT_FLAG), v_flag);
         }
-        _assert(_vnode_put(rootfs_vnode) == ERR_SUCCESS, message, true);
+        _assert(vnode_put(rootfs_vnode) == ERR_SUCCESS, message, true);
         _assert(runCommand("/sbin/mount", NULL) == ERR_SUCCESS, message, true);
         NSString *file = [NSString stringWithContentsOfFile:@"/.installed_unc0ver" encoding:NSUTF8StringEncoding error:nil];
         needStrap = (file == nil ||
