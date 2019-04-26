@@ -5,10 +5,42 @@
 #include <mach/mach.h>
 #include <offsetcache.h>
 
+#if 0
+TODO:
+- Patchfind proc_lock (High priority)
+- Patchfind proc_unlock (High priority)
+- Patchfind proc_ucred_lock (High priority)
+- Patchfind proc_ucred_unlock (High priority)
+- Patchfind vnode_lock (Low priority)
+- Patchfind vnode_unlock (Low priority)
+- Patchfind mount_lock (Low priority)
+- Patchfind mount_unlock (Low priority)
+- Patchfind task_set_platform_binary (High priority)
+- Patchfind kauth_cred_ref (Low priority)
+- Patchfind kauth_cred_unref (Low priority)
+- Patchfind chgproccnt (Low priority)
+- Patchfind kauth_cred_ref (Low priority)
+- Patchfind kauth_cred_unref (Low priority)
+- Patchfind extension_destroy (Low priority)
+- Patchfind extension_create_mach (Middle priority)
+- Use offsetof with XNU headers to find structure offsets (Low priority)
+- Update Unrestrict to implement the kernel calls
+#endif
+
 #define SETOFFSET(offset, val) set_offset(#offset, val)
 #define GETOFFSET(offset) get_offset(#offset)
 
-#define ISADDR(val) ((val) >= 0xffff000000000000 && (val) != 0xffffffffffffffff)
+#define KERN_POINTER_VALID(val) ((val) >= 0xffff000000000000 && (val) != 0xffffffffffffffff)
+#define SIZEOF_STRUCT_EXTENSION 0x60
+
+enum ext_type {
+    ET_FILE = 0,
+    ET_MACH = 1,
+    ET_IOKIT_REG_ENT = 2,
+    ET_POSIX_IPC = 4,
+    ET_PREF_DOMAIN = 5, // inlined in issue_extension_for_preference_domain
+    ET_SYSCTL = 6, // inlined in issue_extension_for_sysctl
+};
 
 extern uint64_t kernel_base;
 extern uint64_t kernel_slide;
@@ -54,9 +86,31 @@ uint32_t get_proc_memstat_state(uint64_t proc);
 void set_proc_memstat_state(uint64_t proc, uint32_t memstat_state);
 void set_proc_memstat_internal(uint64_t proc, bool set);
 bool get_proc_memstat_internal(uint64_t proc);
+size_t kstrlen(uint64_t ptr);
+uint64_t kstralloc(const char *str);
+void kstrfree(uint64_t ptr);
+uint64_t sstrdup(const char *str);
+void sfree(uint64_t ptr);
+int extension_create_file(uint64_t saveto, uint64_t sb, const char *path, size_t path_len, uint32_t subtype);
+int extension_create_mach(uint64_t saveto, uint64_t sb, const char *name, uint32_t subtype);
+int extension_add(uint64_t ext, uint64_t sb, const char *desc);
+void extension_release(uint64_t ext);
+bool set_sandbox_extension(uint64_t proc, const char *exc_key, const char *path);
+uint64_t proc_find(pid_t pid);
+void proc_rele(uint64_t proc);
+void proc_lock(uint64_t proc);
+void proc_unlock(uint64_t proc);
+void proc_ucred_lock(uint64_t proc);
+void proc_ucred_unlock(uint64_t proc);
 void vnode_lock(uint64_t vp);
 void vnode_unlock(uint64_t vp);
 void mount_lock(uint64_t mp);
 void mount_unlock(uint64_t mp);
+void task_set_platform_binary(uint64_t task, boolean_t is_platform);
+void kauth_cred_ref(uint64_t cred);
+void kauth_cred_unref(uint64_t cred);
+int chgproccnt(uid_t uid, int diff);
+void kauth_cred_ref(uint64_t cred);
+void kauth_cred_unref(uint64_t cred);
 
 #endif /* kutils_h */
